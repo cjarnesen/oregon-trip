@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CJ — Oregon Scouting & OAT | April 6–12, 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --zone1: #2563EB;
+    --zone2: #16A34A;
+    --zone3: #9333EA;
+    --zone4: #E11D48;
+    --lodging: #1E40AF;
+    --restaurant: #D97706;
+    --trail: #0D9488;
+    --ev: #16A34A;
+    --training: #DC2626;
+    --family: #F97316;
+    --bg: #FAFAF8;
+    --text: #1A1A1A;
+    --text-muted: #6B7280;
+    --sidebar-w: 380px;
+  }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    color: var(--text);
+    background: var(--bg);
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+  }
+
+  /* ── SIDEBAR ── */
+  #sidebar {
+    width: var(--sidebar-w);
+    min-width: var(--sidebar-w);
+    height: 100vh;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 2px 0 16px rgba(0,0,0,0.06);
+    z-index: 1000;
+    transition: transform 0.3s ease;
+  }
+
+  .sidebar-header {
+    padding: 24px 24px 16px;
+    border-bottom: 1px solid #E5E7EB;
+    flex-shrink: 0;
+  }
+
+  .sidebar-header h1 {
+    font-family: 'Playfair Display', serif;
+    font-weight: 700;
+    font-size: 22px;
+    letter-spacing: -0.3px;
+    color: var(--text);
+  }
+
+  .sidebar-header .subtitle {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-top: 2px;
+    font-style: italic;
+  }
+
+  .trip-meta {
+    display: flex;
+    gap: 12px;
+    margin-top: 10px;
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    flex-wrap: wrap;
+  }
+
+  .trip-meta span { display: flex; align-items: center; gap: 4px; }
+
+  /* Zone Filters */
+  .zone-filters {
+    display: flex;
+    gap: 6px;
+    padding: 12px 24px;
+    border-bottom: 1px solid #E5E7EB;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+  }
+
+  .zone-btn {
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1.5px solid #D1D5DB;
+    background: #fff;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'Inter', sans-serif;
+  }
+
+  .zone-btn:hover { background: #F3F4F6; }
+  .zone-btn.active { color: #fff; border-color: transparent; }
+  .zone-btn.active[data-zone="all"] { background: var(--text); }
+  .zone-btn.active[data-zone="1"] { background: var(--zone1); }
+  .zone-btn.active[data-zone="2"] { background: var(--zone2); }
+  .zone-btn.active[data-zone="3"] { background: var(--zone3); }
+  .zone-btn.active[data-zone="4"] { background: var(--zone4); }
+
+  /* Day List */
+  .day-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 16px;
+  }
+
+  .day-list::-webkit-scrollbar { width: 4px; }
+  .day-list::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 4px; }
+
+  .day-card {
+    background: #fff;
+    border: 1px solid #E5E7EB;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    overflow: hidden;
+    transition: box-shadow 0.2s;
+  }
+
+  .day-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+
+  .day-card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+  }
+
+  .day-card-header::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    border-radius: 10px 0 0 10px;
+  }
+
+  .day-card[data-zone="1"] .day-card-header::before { background: var(--zone1); }
+  .day-card[data-zone="2"] .day-card-header::before { background: var(--zone2); }
+  .day-card[data-zone="3"] .day-card-header::before { background: var(--zone3); }
+  .day-card[data-zone="4"] .day-card-header::before { background: var(--zone4); }
+
+  .day-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .day-card[data-zone="1"] .day-dot { background: var(--zone1); }
+  .day-card[data-zone="2"] .day-dot { background: var(--zone2); }
+  .day-card[data-zone="3"] .day-dot { background: var(--zone3); }
+  .day-card[data-zone="4"] .day-dot { background: var(--zone4); }
+
+  .day-card-title { flex: 1; }
+
+  .day-card-title .day-label {
+    font-weight: 600;
+    font-size: 13px;
+  }
+
+  .day-card-title .day-date {
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  .day-chevron {
+    font-size: 12px;
+    color: var(--text-muted);
+    transition: transform 0.2s;
+  }
+
+  .day-card.open .day-chevron { transform: rotate(180deg); }
+
+  .day-card-body {
+    display: none;
+    padding: 0 14px 12px;
+  }
+
+  .day-card.open .day-card-body { display: block; }
+
+  .stop-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 8px 6px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .stop-item:hover { background: #F9FAFB; }
+  .stop-item.active { background: #F0F4FF; }
+
+  .stop-icon {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    flex-shrink: 0;
+    color: #fff;
+    margin-top: 1px;
+  }
+
+  .stop-icon.lodging { background: var(--lodging); }
+  .stop-icon.restaurant { background: var(--restaurant); }
+  .stop-icon.trail { background: var(--trail); }
+  .stop-icon.ev { background: var(--ev); }
+  .stop-icon.training { background: var(--training); }
+  .stop-icon.family { background: var(--family); }
+
+  .stop-info { flex: 1; min-width: 0; }
+  .stop-name { font-size: 13px; font-weight: 500; }
+  .stop-time { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
+
+  .stop-contact { display: flex; gap: 8px; margin-top: 3px; }
+  .stop-link {
+    font-size: 10px;
+    color: #2563EB;
+    text-decoration: none;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+  }
+  .stop-link:hover { text-decoration: underline; }
+
+  /* Legend */
+  .sidebar-footer {
+    border-top: 1px solid #E5E7EB;
+    padding: 14px 24px;
+    flex-shrink: 0;
+  }
+
+  .legend-title {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+  }
+
+  .legend-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px 16px;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  .legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  /* ── MAP ── */
+  #map {
+    flex: 1;
+    height: 100vh;
+    z-index: 1;
+  }
+
+  /* Custom popups */
+  .leaflet-popup-content-wrapper {
+    border-radius: 10px !important;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.12) !important;
+    padding: 0 !important;
+    font-family: 'Inter', sans-serif !important;
+  }
+
+  .leaflet-popup-content { margin: 0 !important; width: 260px !important; }
+
+  .leaflet-popup-tip { box-shadow: 0 4px 20px rgba(0,0,0,0.12) !important; }
+
+  .popup-content { padding: 14px 16px; }
+
+  .popup-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #fff;
+    margin-bottom: 6px;
+  }
+
+  .popup-content h3 {
+    font-family: 'Playfair Display', serif;
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+
+  .popup-meta {
+    display: flex;
+    gap: 10px;
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+  }
+
+  .popup-notes {
+    font-size: 12px;
+    line-height: 1.5;
+    color: #4B5563;
+  }
+
+  /* Custom map markers */
+  .map-marker {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    color: #fff;
+    font-weight: 600;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+    border: 2px solid #fff;
+    cursor: pointer;
+    transition: transform 0.15s;
+  }
+
+  .map-marker:hover { transform: scale(1.15); }
+
+  .map-marker.lodging { width: 30px; height: 30px; font-size: 14px; }
+  .map-marker.restaurant { width: 24px; height: 24px; font-size: 11px; }
+  .map-marker.trail { width: 26px; height: 26px; font-size: 12px; }
+  .map-marker.ev { width: 20px; height: 20px; font-size: 10px; }
+  .map-marker.training { width: 28px; height: 28px; font-size: 13px; }
+  .map-marker.family { width: 28px; height: 28px; font-size: 13px; }
+
+  /* ── MOBILE TOGGLE ── */
+  #sidebar-toggle {
+    display: none;
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    z-index: 1001;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    border: none;
+    background: #fff;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+    font-size: 18px;
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ── MOBILE ── */
+  @media (max-width: 768px) {
+    body { flex-direction: column-reverse; }
+
+    #sidebar {
+      width: 100%;
+      min-width: 100%;
+      height: 45vh;
+      max-height: 45vh;
+      transform: translateY(0);
+      box-shadow: 0 -4px 16px rgba(0,0,0,0.1);
+    }
+
+    #sidebar.hidden {
+      transform: translateY(calc(100% - 48px));
+    }
+
+    #sidebar.hidden .day-list,
+    #sidebar.hidden .zone-filters,
+    #sidebar.hidden .sidebar-footer {
+      display: none;
+    }
+
+    #map { height: 55vh; }
+
+    #sidebar-toggle { display: flex; }
+
+    .sidebar-header { padding: 14px 16px 10px; }
+    .sidebar-header h1 { font-size: 18px; }
+    .zone-filters { padding: 8px 16px; }
+    .day-list { padding: 8px 12px; }
+    .sidebar-footer { padding: 10px 16px; }
+
+    :root { --sidebar-w: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<div id="sidebar">
+  <div class="sidebar-header">
+    <h1>Oregon Scouting &amp; OAT</h1>
+    <p class="subtitle">Prepared by Jules, Travel Agent</p>
+    <div class="trip-meta">
+      <span>April 6&ndash;12, 2026</span>
+      <span>&bull;</span>
+      <span>7 Days</span>
+      <span>&bull;</span>
+      <span>4 Zones</span>
+      <span>&bull;</span>
+      <span>Rivian R1S</span>
+    </div>
+  </div>
+
+  <div class="zone-filters">
+    <button class="zone-btn active" data-zone="all">All Days</button>
+    <button class="zone-btn" data-zone="1">Beaverton</button>
+    <button class="zone-btn" data-zone="2">Silverton</button>
+    <button class="zone-btn" data-zone="3">Hwy 22</button>
+    <button class="zone-btn" data-zone="4">Bend</button>
+  </div>
+
+  <div class="day-list" id="day-list"></div>
+
+  <div class="sidebar-footer">
+    <div class="legend-title">Legend</div>
+    <div class="legend-grid">
+      <div class="legend-item"><div class="legend-dot" style="background:var(--lodging)"></div> Lodging</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--restaurant)"></div> Restaurant</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--trail)"></div> Trail / OHV</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--training)"></div> Training</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--family)"></div> Family</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--zone1)"></div> Beaverton</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--zone2)"></div> Silverton</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--zone3)"></div> Hwy 22</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--zone4)"></div> Bend</div>
+    </div>
+  </div>
+</div>
+
+<button id="sidebar-toggle">&#9776;</button>
+
+<div id="map"></div>
+
+<script>
+// ── DATA ──
+const ZONE_COLORS = { 1: '#2563EB', 2: '#16A34A', 3: '#9333EA', 4: '#E11D48' };
+const TYPE_COLORS = { lodging: '#1E40AF', restaurant: '#D97706', trail: '#0D9488', ev: '#16A34A', training: '#DC2626', family: '#F97316' };
+const TYPE_ICONS = { lodging: '\u2605', restaurant: '\uD83C\uDF74', trail: '\u26F0', ev: '\u26A1', training: '\uD83C\uDFAF', family: '\uD83D\uDC64' };
+const TYPE_LABELS = { lodging: 'Lodging', restaurant: 'Restaurant', trail: 'Trail / OHV', ev: 'EV Charger', training: 'Training', family: 'Family' };
+
+const DAYS = [
+  {
+    day: 1, date: 'Mon Apr 6', label: 'Drive to Beaverton', zone: 1,
+    stops: [
+      { id: 'campbell-start', name: 'Depart Campbell, CA', type: 'ev', lat: 37.2872, lng: -121.9500, time: 'Depart 6:30 AM', phone: null, url: null, notes: 'Start point. ~580 miles to Beaverton. Plan charging stops in ABRP. Expect 9-10 hours + stops.' },
+      { id: 'dirk-carol', name: 'Dirk & Carol\'s House', type: 'lodging', lat: 45.4676, lng: -122.7636, time: 'Arrive evening', phone: null, url: null, notes: '6951 SE Deline St, Beaverton, OR. Staying 2 nights (Apr 6-8). Confirm EV charging availability -- outlet or nearby L2.' }
+    ]
+  },
+  {
+    day: 2, date: 'Tue Apr 7', label: 'Tillamook State Forest', zone: 1,
+    stops: [
+      { id: 'ea-hillsboro', name: 'EA Charger Meetup', type: 'ev', lat: 45.5350, lng: -122.9230, time: 'Meet ~9:00 AM', phone: '(833) 632-2778', url: 'https://www.electrifyamerica.com/locate-charger/', notes: '7355 NE Imbrie Dr, Hillsboro, OR. Group meetup point. Top off before heading into the forest.' },
+      { id: 'browns-camp', name: 'Browns Camp OHV', type: 'trail', lat: 45.5540, lng: -123.3860, time: 'Mid-morning', phone: '(503) 357-2191', url: 'https://www.oregon.gov/odf/recreation/pages/motorizedtrails.aspx', notes: 'Tillamook State Forest. Firebreak trails and forest service roads. Level 5 and under. Scouting focus: ruts, hill climbs, off-camber, suspension flex terrain. Will be muddy. Group: Terry, Jason, Jared, Randall (Jeep w/ recovery gear + winch). ODF Tillamook District.' },
+      { id: 'lees-camp', name: 'Lee\'s Camp', type: 'trail', lat: 45.5450, lng: -123.4200, time: 'Afternoon', phone: null, url: null, notes: 'Passes Browns and Lydia areas. Forest service road network. Good variety of terrain for SNVORA scouting. Firebreak trails are wider -- less pinstriping risk.' }
+    ]
+  },
+  {
+    day: 3, date: 'Wed Apr 8', label: 'Travel to Silverton', zone: 2,
+    stops: [
+      { id: 'mt-defiance', name: 'Mt Defiance Area (TBD)', type: 'trail', lat: 45.3530, lng: -121.7260, time: 'En route (optional)', phone: null, url: null, notes: 'Group floated trails around Mt Defiance between Beaverton and Silverton. Terry knows the area. Flexible -- depends on timing and group interest.' },
+      { id: 'cindy-bill', name: 'Cindy & Bill\'s House', type: 'lodging', lat: 45.0040, lng: -122.7340, time: 'Afternoon/Evening', phone: null, url: null, notes: '4196 Edison Rd NE, Silverton, OR 97381. Staying 2 nights (Apr 8-10). Confirm EV charging availability. ~70 miles / 1.5 hrs from Beaverton.' }
+    ]
+  },
+  {
+    day: 4, date: 'Thu Apr 9', label: 'La Dee Flats Scouting', zone: 2,
+    stops: [
+      { id: 'la-dee-flats', name: 'La Dee Flats', type: 'trail', lat: 44.8500, lng: -122.2500, time: 'Morning', phone: null, url: null, notes: 'Scouting for future SNVORA training locations. South/east side of Portland -- important to cover both sides for future events. Ryan Grassmann may join. Check OnX for trail details.' },
+      { id: 'hwy22-trails', name: 'Hwy 22 Trails (East)', type: 'trail', lat: 44.7600, lng: -122.1200, time: 'Afternoon (optional)', phone: null, url: null, notes: 'Limited options since the fires. Some FS roads have been cleared, but outside maintained roads is hit or miss. Terry has current intel.' }
+    ]
+  },
+  {
+    day: 5, date: 'Fri Apr 10', label: 'Silverton to Bend + Dinner', zone: 3,
+    stops: [
+      { id: 'niagra-heights', name: 'Niagra Heights', type: 'trail', lat: 44.7200, lng: -122.0400, time: 'Morning stop', phone: null, url: null, notes: 'Trail spot off Hwy 22 en route to Bend. Terry recommended hitting this on the way through.' },
+      { id: 'horn-creek', name: 'Horn Creek', type: 'trail', lat: 44.6900, lng: -121.9800, time: 'Morning stop', phone: null, url: null, notes: 'Another Hwy 22 trail spot. Pair with Niagra Heights on the drive to Bend.' },
+      { id: 'high-lakes', name: 'High Lakes (If Open)', type: 'trail', lat: 44.6500, lng: -121.9000, time: 'If time allows', phone: null, url: null, notes: 'Check if open -- low snow year may help. Ask Terry about current conditions.' },
+      { id: 'bend-hotel', name: 'Home2 Suites by Hilton Bend', type: 'lodging', lat: 44.0700, lng: -121.3070, time: 'Check-in 3:00 PM', phone: '(541) 797-7782', url: 'https://www.hilton.com/en/hotels/rdmbdht-home2-suites-bend/', notes: '21241 NE Livingston Dr, Bend, OR 97701. Staying 2 nights (Apr 10-12). On-site EV charging, free hot breakfast, indoor pool, free parking.' },
+      { id: 'aunt-mary', name: 'Aunt Mary\'s House', type: 'family', lat: 44.0652, lng: -121.3305, time: '3:30 PM', phone: null, url: null, notes: '2213 NW Reserve Camp Court, Bend, OR 97703. Townhouse -- look for the big Buddha at the front door. Street parking is fine (ignore the no-parking sign).' },
+      { id: 'kens-pizza', name: 'Ken\'s Artisan Pizza', type: 'restaurant', lat: 44.0573, lng: -121.3143, time: '4:30 PM', phone: '(541) 797-0029', url: 'https://kensartisan.com/pizza', notes: '1033 NW Bond St, Bend, OR. Walk-in only (no reservations). Fri hours: 5-10pm. Arrive by 4:30 to beat the long lines. Dinner with Aunt Mary & Cousin Kendra.' }
+    ]
+  },
+  {
+    day: 6, date: 'Sat Apr 11', label: 'OAT Training', zone: 4,
+    stops: [
+      { id: 'oat', name: 'Oregon Adventure Trucks', type: 'training', lat: 44.0890, lng: -121.2870, time: 'Full day', phone: '(541) 238-8400', url: 'https://oregonat.com/', notes: '62982 NE 18th St #100, Bend, OR 97701. Full day OAT training.' }
+    ]
+  },
+  {
+    day: 7, date: 'Sun Apr 12', label: 'Drive Home', zone: 4,
+    stops: [
+      { id: 'bend-depart', name: 'Depart Bend', type: 'ev', lat: 44.0700, lng: -121.3070, time: 'Early start', phone: null, url: null, notes: 'Bend to Campbell ~530 miles. Plan 8-9 hours + charging stops in ABRP. Early departure recommended.' },
+      { id: 'campbell-home', name: 'Arrive Campbell', type: 'ev', lat: 37.2872, lng: -121.9500, time: 'Evening', phone: null, url: null, notes: 'Home sweet home.' }
+    ]
+  }
+];
+
+// ── MAP INIT ──
+const map = L.map('map', { center: [44.0, -122.0], zoom: 7, zoomControl: false });
+L.control.zoom({ position: 'topright' }).addTo(map);
+
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+  attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/">OSM</a>',
+  maxZoom: 19,
+  subdomains: 'abcd'
+}).addTo(map);
+
+// ── CREATE MARKERS & ROUTES ──
+const allMarkers = {};
+const zoneGroups = { 1: L.layerGroup(), 2: L.layerGroup(), 3: L.layerGroup(), 4: L.layerGroup() };
+const allBounds = [];
+
+function createMarkerIcon(type, zone) {
+  const bgColor = type === 'lodging' ? ZONE_COLORS[zone] : TYPE_COLORS[type];
+  const sizeClass = type;
+  const sizes = { lodging: [30,30], training: [28,28], family: [28,28], ev: [20,20] };
+  const anchors = { lodging: [15,15], training: [14,14], family: [14,14], ev: [10,10] };
+  const popAnchors = { lodging: -18, training: -16, family: -16, ev: -12 };
+  const sz = sizes[type] || [24,24];
+  const an = anchors[type] || [12,12];
+  const pa = popAnchors[type] || -15;
+  return L.divIcon({
+    className: '',
+    html: `<div class="map-marker ${sizeClass}" style="background:${bgColor}">${TYPE_ICONS[type]}</div>`,
+    iconSize: sz,
+    iconAnchor: an,
+    popupAnchor: [0, pa]
+  });
+}
+
+function formatContact(phone, url) {
+  let html = '';
+  if (phone || url) {
+    html += '<div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap">';
+    if (phone) html += `<a href="tel:${phone.replace(/[^+\d]/g,'')}" style="font-size:11px;color:#2563EB;text-decoration:none;display:flex;align-items:center;gap:3px">&#9742; ${phone}</a>`;
+    if (url) html += `<a href="${url}" target="_blank" style="font-size:11px;color:#2563EB;text-decoration:none;display:flex;align-items:center;gap:3px">&#127760; Website</a>`;
+    html += '</div>';
+  }
+  return html;
+}
+
+function createPopup(stop, day) {
+  const bgColor = stop.type === 'lodging' ? ZONE_COLORS[day.zone] : TYPE_COLORS[stop.type];
+  return `
+    <div class="popup-content">
+      <div class="popup-badge" style="background:${bgColor}">${TYPE_LABELS[stop.type]}</div>
+      <h3>${stop.name}</h3>
+      <div class="popup-meta">
+        <span>Day ${day.day} &mdash; ${day.date}</span>
+        <span>${stop.time}</span>
+      </div>
+      <p class="popup-notes">${stop.notes}</p>
+      ${formatContact(stop.phone, stop.url)}
+    </div>
+  `;
+}
+
+DAYS.forEach(day => {
+  const routeCoords = [];
+
+  day.stops.forEach(stop => {
+    const marker = L.marker([stop.lat, stop.lng], {
+      icon: createMarkerIcon(stop.type, day.zone)
+    }).bindPopup(createPopup(stop, day), { maxWidth: 280, closeButton: true });
+
+    allMarkers[stop.id] = marker;
+    zoneGroups[day.zone].addLayer(marker);
+    allBounds.push([stop.lat, stop.lng]);
+    routeCoords.push([stop.lat, stop.lng]);
+  });
+
+  // Route line
+  if (routeCoords.length > 1) {
+    const routeLine = L.polyline(routeCoords, {
+      color: ZONE_COLORS[day.zone],
+      weight: 2.5,
+      opacity: 0.45,
+      dashArray: '8,6',
+      interactive: false
+    });
+    zoneGroups[day.zone].addLayer(routeLine);
+  }
+});
+
+Object.values(zoneGroups).forEach(g => g.addTo(map));
+
+// Fit bounds
+if (allBounds.length) {
+  map.fitBounds(allBounds, { padding: [40, 40] });
+}
+
+// ── SIDEBAR RENDERING ──
+const dayListEl = document.getElementById('day-list');
+
+DAYS.forEach((day, i) => {
+  const card = document.createElement('div');
+  card.className = `day-card${i === 0 ? ' open' : ''}`;
+  card.dataset.zone = day.zone;
+
+  let stopsHTML = '';
+  day.stops.forEach(stop => {
+    const iconClass = stop.type;
+    let contactLine = '';
+    if (stop.phone || stop.url) {
+      contactLine = '<div class="stop-contact">';
+      if (stop.phone) contactLine += `<a href="tel:${stop.phone.replace(/[^+\\d]/g,'')}" class="stop-link" onclick="event.stopPropagation()">&#9742; Call</a>`;
+      if (stop.url) contactLine += `<a href="${stop.url}" target="_blank" class="stop-link" onclick="event.stopPropagation()">&#127760; Web</a>`;
+      contactLine += '</div>';
+    }
+    stopsHTML += `
+      <div class="stop-item" data-stop-id="${stop.id}">
+        <div class="stop-icon ${iconClass}">${TYPE_ICONS[stop.type]}</div>
+        <div class="stop-info">
+          <div class="stop-name">${stop.name}</div>
+          <div class="stop-time">${stop.time}</div>
+          ${contactLine}
+        </div>
+      </div>
+    `;
+  });
+
+  card.innerHTML = `
+    <div class="day-card-header">
+      <div class="day-dot"></div>
+      <div class="day-card-title">
+        <div class="day-label">Day ${day.day}: ${day.label}</div>
+        <div class="day-date">${day.date} &bull; ${day.stops.length} stops</div>
+      </div>
+      <div class="day-chevron">&#9660;</div>
+    </div>
+    <div class="day-card-body">${stopsHTML}</div>
+  `;
+
+  dayListEl.appendChild(card);
+
+  // Toggle day card
+  card.querySelector('.day-card-header').addEventListener('click', () => {
+    card.classList.toggle('open');
+  });
+
+  // Click stop to fly to marker
+  card.querySelectorAll('.stop-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const stopId = item.dataset.stopId;
+      const marker = allMarkers[stopId];
+      if (marker) {
+        map.flyTo(marker.getLatLng(), 13, { duration: 0.8 });
+        marker.openPopup();
+        // Highlight
+        card.querySelectorAll('.stop-item').forEach(s => s.classList.remove('active'));
+        item.classList.add('active');
+      }
+    });
+  });
+});
+
+// ── ZONE FILTERS ──
+document.querySelectorAll('.zone-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.zone-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    const zone = btn.dataset.zone;
+
+    document.querySelectorAll('.day-card').forEach(card => {
+      if (zone === 'all' || card.dataset.zone === zone) {
+        card.style.display = '';
+      } else {
+        card.style.display = 'none';
+      }
+    });
+
+    // Toggle map layers
+    Object.entries(zoneGroups).forEach(([z, group]) => {
+      if (zone === 'all' || z === zone) {
+        if (!map.hasLayer(group)) map.addLayer(group);
+      } else {
+        if (map.hasLayer(group)) map.removeLayer(group);
+      }
+    });
+
+    // Fit to visible bounds
+    if (zone === 'all') {
+      map.fitBounds(allBounds, { padding: [40, 40] });
+    } else {
+      const zoneBounds = [];
+      DAYS.filter(d => String(d.zone) === zone).forEach(d => {
+        d.stops.forEach(s => zoneBounds.push([s.lat, s.lng]));
+      });
+      if (zoneBounds.length) map.fitBounds(zoneBounds, { padding: [60, 60] });
+    }
+  });
+});
+
+// ── MOBILE SIDEBAR TOGGLE ──
+document.getElementById('sidebar-toggle').addEventListener('click', () => {
+  document.getElementById('sidebar').classList.toggle('hidden');
+});
+</script>
+
+</body>
+</html>
